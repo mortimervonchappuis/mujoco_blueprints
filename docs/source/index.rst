@@ -31,7 +31,7 @@ Alternatively from Github:
    $ git clone https://github.com/mortimervonchappuis/mujoco_blueprints.git
 
 
-
+.. include:: introduction.rst
 
 Contents
 --------
@@ -39,11 +39,11 @@ Contents
 .. toctree::
    :maxdepth: 1
 
-   introduction
    tutorial
    Blueprints <blueprints>
    Things <blueprints.thing>
    Utils <blueprints.utils>
+   introduction
 
 ..
    overview
