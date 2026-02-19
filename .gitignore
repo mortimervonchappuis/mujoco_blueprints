@@ -5,3 +5,4 @@ make_doc.sh
 assets/
 recordings/
 *.egg-info/
+pypi.sh
