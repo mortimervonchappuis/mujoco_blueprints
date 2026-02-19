@@ -1,4 +1,4 @@
-import mujoco_blueprints as blue
+import blueprints as blue
 
 
 torso = blue.Body(name='torso')

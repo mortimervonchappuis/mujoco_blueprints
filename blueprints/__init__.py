@@ -21,7 +21,7 @@ Concrete Things
 - :mod:`Textures <blueprints.texture>` (All but ``BaseTexture``)
 - :mod:`Sensors <blueprints.sensors>` (All but ``<Thing>Sensor``)
 - :mod:`Tendons <blueprints.tendon>`  (Only ``Tendon``)
-- :mod:`Worlds <blueprints.world>`
+- :mod:`Worlds <blueprints.world.World>`
 
 :mod:`Caches <blueprints.cache>` and :mod:`Assets <blueprints.assets>` are handeled in the background, so you don't 
 have to create them manually and can most often treat their occurences in ordinary mujoco as 
@@ -68,6 +68,16 @@ To modify the kinematic hierarchy there are some methods and attributes to have 
 Alternatively kinematic trees can also be constructed by passing children as additional arguments to the ``__init__`` of 
 all concrete :class:`NodeThings <blueprints.thing.node.NodeThing>`.
 
+Types
+-----
+
+To enable typesafty :meth:`restrictions <blueprints.utils.typechecker.restrict>` via type hints, the 
+inheritance hierarchy of :class:`Things <blueprints.thing.base.BaseThing>` is mirrored in :mod:`types <blueprints.types>`.
+
+
+.. inheritance-diagram:: blueprints.types
+    :parts: 1
+
 """
 
 
@@ -90,7 +100,7 @@ def _experimental(func):
 
 from .utils.typechecker import restrict
 
-from .types       import *
+from .mirrortypes       import *
 from .utils.view  import View, AllView, LatticeView
 
 from .thing       import *

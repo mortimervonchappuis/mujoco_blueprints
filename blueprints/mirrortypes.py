@@ -29,20 +29,19 @@ attributes used to translate back and forth between mujoco xml and blueprints.
 """
 
 
-from abc import ABC, ABCMeta
+#from abc import ABC, ABCMeta
 import numpy as np
 
 
 
-class PathType(ABC):
+class PathType(object):
 
 	"""
 	This abstract base class is a used to represent the Tendon class in type hints. For a detailed
 	description see :class:`blueprints.tendon.Path`.
 	"""
 
-
-class FunctionHandleType(ABC):
+class FunctionHandleType(object):
 
 	"""
 	This abstract base class is a used to represent the FunctionHandle class in type hints. For a detailed
@@ -50,7 +49,7 @@ class FunctionHandleType(ABC):
 	"""
 
 
-class ViewType(ABC):
+class ViewType(object):
 
 	"""
 	This abstract base class is a used to represent the View class in type hints. For a detailed
@@ -66,7 +65,7 @@ class AllViewType(ViewType):
 	"""
 
 
-class LatticeType(ABC):
+class LatticeType(object):
 
 	"""
 	This abstract base class is a used to represent the Lattice class in type hints. For a detailed
@@ -74,7 +73,7 @@ class LatticeType(ABC):
 	"""
 
 
-class LatticeViewType(ABC):
+class LatticeViewType(object):
 
 	"""
 	This abstract base class is a used to represent the LatticeView class in type hints. For a detailed
@@ -82,7 +81,7 @@ class LatticeViewType(ABC):
 	"""
 
 
-class ColorType(ABC):
+class ColorType(object):
 
 	"""
 	This abstract base class is a used to represent the View class in type hints. For a detailed
@@ -109,7 +108,7 @@ class ColorType(ABC):
 		   'dark_grey':   [0.25, 0.25,  0.25]}
 
 
-class ThingType(ABC):
+class ThingType(object):
 
 	"""
 	This abstract base class is a used to represent the Thing class in type hints. For a detailed

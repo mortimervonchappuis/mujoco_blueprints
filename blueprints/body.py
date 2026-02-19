@@ -1,4 +1,16 @@
-"""
+import xml.etree.ElementTree as xml
+import numpy  as np
+import blueprints as blue
+
+
+
+class Body(blue.BodyType, blue.thing.MoveableThing, blue.thing.NodeThing):
+	"""
+	This class is available through the shortcut :class:`blueprints.Body <Body>`.
+
+	Attributes from base classes :class:`MoveableThing <blueprints.thing.moveable.MoveableThing>` and :class:`NodeThing <blueprints.thing.node.NodeThing>` are inherited.
+	
+
 A :class:`Body` is the primary Thing used to build the structure of a kinematic tree. This is done by 
 attaching them to other bodies as well as other bodies to them. Bodies do have a position and an orientation 
 but no further physical properties like a shape, a size or mass. Positions and orientations are local meaning 
@@ -83,20 +95,8 @@ create a kinematic tree of this structure:
 	>>> tree.bodies.attach(bran.rotate(beta=-angle), bran.rotate(beta=angle))
 	>>> tree.bodies.bodies.attach(twig.rotate(beta=-angle), twig.rotate(beta=angle))
 	>>> tree.bodies.bodies.bodies.attach(leaf.rotate(beta=-angle), leaf.rotate(beta=angle))
-"""
-
-import xml.etree.ElementTree as xml
-import numpy  as np
-import blueprints as blue
 
 
-
-class Body(blue.BodyType, blue.thing.MoveableThing, blue.thing.NodeThing):
-	"""
-	This class is available through the shortcut :class:`blueprints.Body <Body>`.
-
-	Attributes from base classes :class:`MoveableThing <blueprints.thing.moveable.MoveableThing>` and :class:`NodeThing <blueprints.thing.node.NodeThing>` are inherited.
-	
 	Attributes
 	----------
 	bodies, cameras, geoms, sites, joints, lights, cameras, actuators, placeholders : :class:`View <blueprints.utils.view.View>`
