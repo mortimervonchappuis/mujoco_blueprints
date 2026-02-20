@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path('../..', 'blueprints').resolve()))
 project = 'blueprints'
 copyright = '2026, Mortimer von Chappuis'
 author = 'Mortimer von Chappuis'
-release = '0.0.1'
+release = '0.0.5'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -37,7 +37,7 @@ extensions = ['sphinx.ext.todo',
 	      'sphinx.ext.inheritance_diagram', 
 	      'sphinx.ext.autosummary', 
 	      'sphinx.ext.mathjax', 
-	      'sphinx_automodapi.automodapi',
+	      'sphinx_automodapi.automodapi', 
 	      'sphinx.ext.napoleon', 
 	      'sphinx.ext.graphviz', 
 	      'sphinx.ext.intersphinx', 
