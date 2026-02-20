@@ -4,4 +4,4 @@ numpy>=2.0.0
 imageio>=2.0.0
 mujoco>=3.3.2
 tqdm>=4.0.0
-mujoco_blueprints>=0.0.4
+mujoco_blueprints>=0.0.5
