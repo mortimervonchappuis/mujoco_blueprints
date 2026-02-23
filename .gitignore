@@ -6,3 +6,4 @@ assets/
 recordings/
 *.egg-info/
 pypi.sh
+result
