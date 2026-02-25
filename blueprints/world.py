@@ -17,7 +17,7 @@ and :meth:`detach <blueprints.thing.node.NodeThing.detach>`.
 	[Red[#FF0000], Green[#00FF00]]
 	>>> world.detach(red_teapot)
 	>>> world.geoms.color
-	[Green[#0FF0]]
+	[Green[#00FF00]]
 
 The :meth:`view <World.view>` method can be used. The perspective of the default camera is set such that all 
 Things attached to the :class:`World` are in view.
