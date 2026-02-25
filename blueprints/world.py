@@ -14,7 +14,7 @@ and :meth:`detach <blueprints.thing.node.NodeThing.detach>`.
 	>>> green_teapot = teapot.copy(color='green')
 	>>> world.attach(red_teapot, green_teapot, copy=False)
 	>>> world.geoms.color
-	[Red[#FF00], Green[#0FF0]]
+	[Red[#FF0000], Green[#00FF00]]
 	>>> world.detach(red_teapot)
 	>>> world.geoms.color
 	[Green[#0FF0]]
