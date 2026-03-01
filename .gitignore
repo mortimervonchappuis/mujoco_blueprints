@@ -7,3 +7,6 @@ recordings/
 *.egg-info/
 pypi.sh
 result
+
+**/__pycache__/
+*.pyc 
