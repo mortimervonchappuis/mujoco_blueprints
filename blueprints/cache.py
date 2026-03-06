@@ -586,8 +586,6 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 		filename : str | None
 			The name to which the file is saved.
 		"""
-		with open(self.filename, 'r') as file:
-			origin_file = file.read()
 		vertex_flag, face_flag = False, False
 		with open(filename, 'w') as file:
 			file.write('# Exported with microcosm AI blueprints\n')
