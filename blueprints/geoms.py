@@ -51,7 +51,7 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 		----------
 		pos : list[int | float] | np.ndarray | None, optional
 			Represents the position of the object. Changing this attribute also changes the properties :attr:`x`, :attr:`y` and :attr:`z`.
-		alpha : int | floatobject | None, optional
+		alpha : int | float | None, optional
 			(Improper) euler angle of rotation around the x-axis in radian. Changing this value also changes the :attr:`euler` property.
 		beta : int | float | None, optional
 			(Improper) euler angle of rotation around the y-axis in radian. Changing this value also changes the :attr:`euler` property.
