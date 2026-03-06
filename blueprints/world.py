@@ -763,7 +763,7 @@ class World(blue.WorldType, blue.thing.NodeThing):
 				if actuator_name in sensors['actuator']:
 					actuator_obj.attach(*sensors['actuator'][actuator_name], copy=False)
 				parent_name = actuator.get(actuator_obj._PARENT_REFERENCE)
-				actuators[actuator_parent][parent_name].append(actuator_obj)
+				actuators[actuator_obj._PARENT_REFERENCE][parent_name].append(actuator_obj)
 				if parent_name is not None:
 						break
 				#for actuator_parent in actuator_obj._PARENT_REFERENCE:

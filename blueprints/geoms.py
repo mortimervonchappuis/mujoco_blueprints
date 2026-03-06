@@ -51,7 +51,7 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 		----------
 		pos : list[int | float] | np.ndarray | None, optional
 			Represents the position of the object. Changing this attribute also changes the properties :attr:`x`, :attr:`y` and :attr:`z`.
-		alpha : int | floatobject | None, optional
+		alpha : int | float | None, optional
 			(Improper) euler angle of rotation around the x-axis in radian. Changing this value also changes the :attr:`euler` property.
 		beta : int | float | None, optional
 			(Improper) euler angle of rotation around the y-axis in radian. Changing this value also changes the :attr:`euler` property.
@@ -83,11 +83,11 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 			boundary. In this case density is interpreted as surface density rather than volumetric 
 			density.
 		sliding_friction : int | float, optional
-			Friction parameter for rolling used to computed the forces on contact pairs. 
+			Friction parameter for sliding used to compute the forces on contact pairs.
 		torsional_friction : int | float, optional
-			Friction parameter for sliding used to computed the forces on contact pairs. 
+			Friction parameter for torsion used to compute the forces on contact pairs.
 		rolling_friction : int | float, optional
-			Friction parameter for torsion used to computed the forces on contact pairs. 
+			Friction parameter for rolling used to compute the forces on contact pairs. 
 		color : blue.ColorType
 			The color of the Geom. For a detailed description see :class:`Color `
 		name : str | None, optional
@@ -111,7 +111,6 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 		self.sliding_friction   = sliding_friction
 		self.torsional_friction = torsional_friction
 		self.rolling_friction   = rolling_friction
-		self.margin             = margin
 		# MATERIAL
 		self.material           = material
 		# PSEUDO CHILDREN

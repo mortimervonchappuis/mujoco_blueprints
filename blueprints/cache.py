@@ -586,8 +586,6 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 		filename : str | None
 			The name to which the file is saved.
 		"""
-		with open(self.filename, 'r') as file:
-			origin_file = file.read()
 		vertex_flag, face_flag = False, False
 		with open(filename, 'w') as file:
 			file.write('# Exported with microcosm AI blueprints\n')
@@ -1210,7 +1208,7 @@ class HFieldCache(blue.HFieldCacheType, BaseCache):
 		ncols          = struct.unpack('I', data[4:8])[0]
 		# TRTIANGLE DATA
 		height_data    = data[8:]
-		rows           = []
+		heights        = []
 		for i in range(nrows * ncols):
 			height = height_data[i*4:(i+1)*4]
 			heights.append(bytes_to_float(height))
@@ -1221,7 +1219,7 @@ class HFieldCache(blue.HFieldCacheType, BaseCache):
 	@blue.restrict
 	def _load_PNG(self, filename: str) -> None:
 		image        = imread(filename)
-		height       = np.mean(image[:,:,:3])
+		height       = np.mean(image[:,:,:3], axis=2)
 		self.terrain = height
 	
 
