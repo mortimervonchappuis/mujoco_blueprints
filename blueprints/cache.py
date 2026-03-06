@@ -344,18 +344,13 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 			# HANDLING VERTECIES
 			if line.startswith('v '):
 				values = line[2:].strip().split(' ')[:3]
-				vertex = list(map(float, values))
-				vertecies.append(np.array(vertex))
+				vertecies.append(tuple(map(float, values)))
 			elif line.startswith('vn '):
 				values = line[3:].strip().split(' ')[:3]
-				normal = list(map(float, values))
-				normal = np.array(normal)
-				#normal = normal / np.linalg.norm(normal)
-				vertex_normals.append(normal)
+				vertex_normals.append(np.array(values, dtype=np.float64))
 			elif line.startswith('vt '):
-				values   = line[3:].strip().split(' ')[:2]
-				texcoord = list(map(float, values))
-				texcoords.append(np.array(texcoord))
+				values = line[3:].strip().split(' ')[:2]
+				texcoords.append(tuple(map(float, values)))
 			elif line.startswith('f '):
 				vertex_idx   = line[2:].strip().split(' ')#[:3]
 				triangle_idx = [[vertex_idx[0], a, b] for a, b in zip(vertex_idx[1:], vertex_idx[2:])]
@@ -385,7 +380,7 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 						texcoords_idx[len(faces)] = tex_idx
 					face = list(map(int, values))
 					face = [idx if idx != -2 else len(vertecies) for idx in face]
-					faces.append(np.array(face)) # -1
+					faces.append(face)
 		assert not texcoords_idx.values() or all(map(texcoords_idx.__contains__, range(len(faces))))
 		self.vertecies      = vertecies
 		self.faces          = faces
@@ -586,33 +581,35 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 		filename : str | None
 			The name to which the file is saved.
 		"""
-		with open(self.filename, 'r') as file:
-			origin_file = file.read()
-		vertex_flag, face_flag = False, False
+		lines = ['# Exported with microcosm AI blueprints\n', '\n# VERTECIES\n']
+		for v in self.vertecies:
+			lines.append(f'v {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n')
+		if self.vertex_normals:
+			lines.append('\n# NORMALS\n')
+			for n in self.vertex_normals:
+				lines.append(f'vn {n[0]:.6f} {n[1]:.6f} {n[2]:.6f}\n')
+		if self.texcoords:
+			lines.append('\n# TEXTURE COORDINATES\n')
+			for t in self.texcoords:
+				lines.append(f'vt {t[0]:.6f} {t[1]:.6f}\n')
+		if self.faces:
+			texcoords_idx = self.texcoords_idx
+			normals_idx = self.normals_idx
+			lines.append('\n# FACES\n')
+			for i, face in enumerate(self.faces):
+				has_tex = i in texcoords_idx
+				has_nrm = i in normals_idx
+				if has_tex and has_nrm:
+					parts = ' '.join(f"{v + 1}/{t + 1}/{n + 1}" for v, t, n in zip(face, texcoords_idx[i], normals_idx[i]))
+				elif has_tex:
+					parts = ' '.join(f"{v + 1}/{t + 1}" for v, t in zip(face, texcoords_idx[i]))
+				elif has_nrm:
+					parts = ' '.join(f"{v + 1}//{n + 1}" for v, n in zip(face, normals_idx[i]))
+				else:
+					parts = ' '.join(f"{v + 1}" for v in face)
+				lines.append(f'f {parts}\n')
 		with open(filename, 'w') as file:
-			file.write('# Exported with microcosm AI blueprints\n')
-			file.write('\n# VERTECIES\n')
-			for vertex in self.vertecies:
-				file.write('v ' + ' '.join(map(lambda x: format(round(float(x), 6), 'f'), vertex)) + '\n')
-			if self.vertex_normals:
-				file.write('\n# NORMALS\n')
-				for normal in self.vertex_normals:
-					file.write('vn ' + ' '.join(map(lambda x: format(round(float(x), 6), 'f'), normal)) + '\n')
-			if self.texcoords:
-				file.write('\n# TEXTURE COORDINATES\n')
-				for texcoord in self.texcoords:
-					file.write('vt ' + ' '.join(map(lambda x: format(round(float(x), 6), 'f'), texcoord)) + '\n')
-			if self.faces:
-				file.write('\n# FACES\n')
-				for i, face in enumerate(self.faces):
-					if i in self.texcoords_idx and i in self.normals_idx:
-						file.write('f ' + ' '.join(map(lambda x: f"{x[0] + 1}/{x[1] + 1}/{x[2] + 1}", zip(face, self.texcoords_idx[i], self.normals_idx[i]))) + '\n')
-					elif i in self.texcoords_idx:
-						file.write('f ' + ' '.join(map(lambda x: f"{x[0] + 1}/{x[1] + 1}", zip(face, self.texcoords_idx[i]))) + '\n')
-					elif i in self.normals_idx:
-						file.write('f ' + ' '.join(map(lambda x: f"{x[0] + 1}//{x[1] + 1}", zip(face, self.normals_idx[i]))) + '\n')
-					else:
-						file.write('f ' + ' '.join(map(lambda x: f"{x + 1}", face)) + '\n')
+			file.writelines(lines)
 
 
 	@blue.restrict
@@ -1202,26 +1199,20 @@ class HFieldCache(blue.HFieldCacheType, BaseCache):
 		data : bytes
 			The data of the file to be parsed
 		"""
-		# CONVERSION FUNCTIONS
-		bytes_to_float = lambda x: struct.unpack('f', x)[0]
-		vector_tuple   = lambda x: tuple(map(bytes_to_float, (x[:4], x[4:8], x[8:])))
 		# HEADER DATA
 		nrows          = struct.unpack('I', data[0:4])[0]
 		ncols          = struct.unpack('I', data[4:8])[0]
-		# TRTIANGLE DATA
-		height_data    = data[8:]
-		rows           = []
-		for i in range(nrows * ncols):
-			height = height_data[i*4:(i+1)*4]
-			heights.append(bytes_to_float(height))
+		# HEIGHT DATA (batch unpack all floats at once)
+		n_floats       = nrows * ncols
+		heights        = struct.unpack(f'{n_floats}f', data[8:8 + n_floats * 4])
 		# SET ATTRIBUTES
-		self.terrain    = np.array(heights).reshape((nrows, ncols))
+		self.terrain   = np.array(heights, dtype=np.float32).reshape((nrows, ncols))
 		
 
 	@blue.restrict
 	def _load_PNG(self, filename: str) -> None:
 		image        = imread(filename)
-		height       = np.mean(image[:,:,:3])
+		height       = np.mean(image[:,:,:3], axis=2)
 		self.terrain = height
 	
 
