@@ -83,11 +83,11 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 			boundary. In this case density is interpreted as surface density rather than volumetric 
 			density.
 		sliding_friction : int | float, optional
-			Friction parameter for rolling used to computed the forces on contact pairs. 
+			Friction parameter for sliding used to compute the forces on contact pairs.
 		torsional_friction : int | float, optional
-			Friction parameter for sliding used to computed the forces on contact pairs. 
+			Friction parameter for torsion used to compute the forces on contact pairs.
 		rolling_friction : int | float, optional
-			Friction parameter for torsion used to computed the forces on contact pairs. 
+			Friction parameter for rolling used to compute the forces on contact pairs. 
 		color : blue.ColorType
 			The color of the Geom. For a detailed description see :class:`Color `
 		name : str | None, optional
