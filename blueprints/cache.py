@@ -586,31 +586,35 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 		filename : str | None
 			The name to which the file is saved.
 		"""
-		vertex_flag, face_flag = False, False
+		lines = ['# Exported with microcosm AI blueprints\n', '\n# VERTECIES\n']
+		for v in self.vertecies:
+			lines.append(f'v {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n')
+		if self.vertex_normals:
+			lines.append('\n# NORMALS\n')
+			for n in self.vertex_normals:
+				lines.append(f'vn {n[0]:.6f} {n[1]:.6f} {n[2]:.6f}\n')
+		if self.texcoords:
+			lines.append('\n# TEXTURE COORDINATES\n')
+			for t in self.texcoords:
+				lines.append(f'vt {t[0]:.6f} {t[1]:.6f}\n')
+		if self.faces:
+			texcoords_idx = self.texcoords_idx
+			normals_idx = self.normals_idx
+			lines.append('\n# FACES\n')
+			for i, face in enumerate(self.faces):
+				has_tex = i in texcoords_idx
+				has_nrm = i in normals_idx
+				if has_tex and has_nrm:
+					parts = ' '.join(f"{v + 1}/{t + 1}/{n + 1}" for v, t, n in zip(face, texcoords_idx[i], normals_idx[i]))
+				elif has_tex:
+					parts = ' '.join(f"{v + 1}/{t + 1}" for v, t in zip(face, texcoords_idx[i]))
+				elif has_nrm:
+					parts = ' '.join(f"{v + 1}//{n + 1}" for v, n in zip(face, normals_idx[i]))
+				else:
+					parts = ' '.join(f"{v + 1}" for v in face)
+				lines.append(f'f {parts}\n')
 		with open(filename, 'w') as file:
-			file.write('# Exported with microcosm AI blueprints\n')
-			file.write('\n# VERTECIES\n')
-			for vertex in self.vertecies:
-				file.write('v ' + ' '.join(map(lambda x: format(round(float(x), 6), 'f'), vertex)) + '\n')
-			if self.vertex_normals:
-				file.write('\n# NORMALS\n')
-				for normal in self.vertex_normals:
-					file.write('vn ' + ' '.join(map(lambda x: format(round(float(x), 6), 'f'), normal)) + '\n')
-			if self.texcoords:
-				file.write('\n# TEXTURE COORDINATES\n')
-				for texcoord in self.texcoords:
-					file.write('vt ' + ' '.join(map(lambda x: format(round(float(x), 6), 'f'), texcoord)) + '\n')
-			if self.faces:
-				file.write('\n# FACES\n')
-				for i, face in enumerate(self.faces):
-					if i in self.texcoords_idx and i in self.normals_idx:
-						file.write('f ' + ' '.join(map(lambda x: f"{x[0] + 1}/{x[1] + 1}/{x[2] + 1}", zip(face, self.texcoords_idx[i], self.normals_idx[i]))) + '\n')
-					elif i in self.texcoords_idx:
-						file.write('f ' + ' '.join(map(lambda x: f"{x[0] + 1}/{x[1] + 1}", zip(face, self.texcoords_idx[i]))) + '\n')
-					elif i in self.normals_idx:
-						file.write('f ' + ' '.join(map(lambda x: f"{x[0] + 1}//{x[1] + 1}", zip(face, self.normals_idx[i]))) + '\n')
-					else:
-						file.write('f ' + ' '.join(map(lambda x: f"{x + 1}", face)) + '\n')
+			file.writelines(lines)
 
 
 	@blue.restrict
