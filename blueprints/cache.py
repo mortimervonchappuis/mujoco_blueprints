@@ -344,18 +344,13 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 			# HANDLING VERTECIES
 			if line.startswith('v '):
 				values = line[2:].strip().split(' ')[:3]
-				vertex = list(map(float, values))
-				vertecies.append(np.array(vertex))
+				vertecies.append(tuple(map(float, values)))
 			elif line.startswith('vn '):
 				values = line[3:].strip().split(' ')[:3]
-				normal = list(map(float, values))
-				normal = np.array(normal)
-				#normal = normal / np.linalg.norm(normal)
-				vertex_normals.append(normal)
+				vertex_normals.append(np.array(values, dtype=np.float64))
 			elif line.startswith('vt '):
-				values   = line[3:].strip().split(' ')[:2]
-				texcoord = list(map(float, values))
-				texcoords.append(np.array(texcoord))
+				values = line[3:].strip().split(' ')[:2]
+				texcoords.append(tuple(map(float, values)))
 			elif line.startswith('f '):
 				vertex_idx   = line[2:].strip().split(' ')#[:3]
 				triangle_idx = [[vertex_idx[0], a, b] for a, b in zip(vertex_idx[1:], vertex_idx[2:])]
@@ -385,7 +380,7 @@ class MeshCache(blue.MeshCacheType, BaseCache):
 						texcoords_idx[len(faces)] = tex_idx
 					face = list(map(int, values))
 					face = [idx if idx != -2 else len(vertecies) for idx in face]
-					faces.append(np.array(face)) # -1
+					faces.append(face)
 		assert not texcoords_idx.values() or all(map(texcoords_idx.__contains__, range(len(faces))))
 		self.vertecies      = vertecies
 		self.faces          = faces
@@ -1204,20 +1199,14 @@ class HFieldCache(blue.HFieldCacheType, BaseCache):
 		data : bytes
 			The data of the file to be parsed
 		"""
-		# CONVERSION FUNCTIONS
-		bytes_to_float = lambda x: struct.unpack('f', x)[0]
-		vector_tuple   = lambda x: tuple(map(bytes_to_float, (x[:4], x[4:8], x[8:])))
 		# HEADER DATA
 		nrows          = struct.unpack('I', data[0:4])[0]
 		ncols          = struct.unpack('I', data[4:8])[0]
-		# TRTIANGLE DATA
-		height_data    = data[8:]
-		heights        = []
-		for i in range(nrows * ncols):
-			height = height_data[i*4:(i+1)*4]
-			heights.append(bytes_to_float(height))
+		# HEIGHT DATA (batch unpack all floats at once)
+		n_floats       = nrows * ncols
+		heights        = struct.unpack(f'{n_floats}f', data[8:8 + n_floats * 4])
 		# SET ATTRIBUTES
-		self.terrain    = np.array(heights).reshape((nrows, ncols))
+		self.terrain   = np.array(heights, dtype=np.float32).reshape((nrows, ncols))
 		
 
 	@blue.restrict
