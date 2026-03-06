@@ -1221,7 +1221,7 @@ class HFieldCache(blue.HFieldCacheType, BaseCache):
 	@blue.restrict
 	def _load_PNG(self, filename: str) -> None:
 		image        = imread(filename)
-		height       = np.mean(image[:,:,:3])
+		height       = np.mean(image[:,:,:3], axis=2)
 		self.terrain = height
 	
 
