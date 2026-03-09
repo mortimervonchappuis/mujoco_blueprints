@@ -758,7 +758,6 @@ class World(blue.WorldType, blue.thing.NodeThing):
 				init_args['contact'] = xml_flag.get('contact') == 'enable'
 		if xml_sensors is not None:
 			for sensor in xml_sensors:
-				sensor_type   = sensor.tag
 				sensor_obj    = blue.REGISTER._get_thing(sensor)
 				sensor_parent = sensor_obj._PARENT_TYPE
 				sensors[sensor_parent][sensor.get(sensor_parent)].append(sensor_obj)
@@ -775,8 +774,7 @@ class World(blue.WorldType, blue.thing.NodeThing):
 			TEX_FLOAT  = {'random'}
 			TEX_INT    = {'width', 'height', 'n_channel', 'nchannel'}
 			TEX_BOOL   = {'hflip', 'vflip', 'h_flip', 'v_flip'}
-			TEX_ARRAY  = {'rgb1', 'rgb2', 'markrgb', 'gridsize',
-				       'color_1', 'color_2', 'color_mark', 'grid_size'}
+			TEX_ARRAY  = {'rgb1', 'rgb2', 'markrgb', 'gridsize'}
 			TEX_SKIP   = {'type', 'name'}
 			# First pass: textures and cache-based assets (mesh, hfield)
 			for asset in xml_assets:
