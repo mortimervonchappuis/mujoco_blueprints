@@ -686,7 +686,6 @@ class World(blue.WorldType, blue.thing.NodeThing):
 
 	@blue.restrict
 	@classmethod
-	@blue._experimental
 	def from_xml_string(cls, string: str) -> blue.WorldType:
 		"""
 		This method reconstructs a World from a Mujoco xml string. It currently only supports reading 
