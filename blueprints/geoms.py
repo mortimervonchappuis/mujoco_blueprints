@@ -51,7 +51,7 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 		----------
 		pos : list[int | float] | np.ndarray | None, optional
 			Represents the position of the object. Changing this attribute also changes the properties :attr:`x`, :attr:`y` and :attr:`z`.
-		alpha : int | floatobject | None, optional
+		alpha : int | float | None, optional
 			(Improper) euler angle of rotation around the x-axis in radian. Changing this value also changes the :attr:`euler` property.
 		beta : int | float | None, optional
 			(Improper) euler angle of rotation around the y-axis in radian. Changing this value also changes the :attr:`euler` property.
@@ -83,11 +83,11 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 			boundary. In this case density is interpreted as surface density rather than volumetric 
 			density.
 		sliding_friction : int | float, optional
-			Friction parameter for rolling used to computed the forces on contact pairs. 
+			Friction parameter for sliding used to compute the forces on contact pairs.
 		torsional_friction : int | float, optional
-			Friction parameter for sliding used to computed the forces on contact pairs. 
+			Friction parameter for torsion used to compute the forces on contact pairs.
 		rolling_friction : int | float, optional
-			Friction parameter for torsion used to computed the forces on contact pairs. 
+			Friction parameter for rolling used to compute the forces on contact pairs. 
 		color : blue.ColorType
 			The color of the Geom. For a detailed description see :class:`Color `
 		name : str | None, optional
@@ -111,7 +111,6 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 		self.sliding_friction   = sliding_friction
 		self.torsional_friction = torsional_friction
 		self.rolling_friction   = rolling_friction
-		self.margin             = margin
 		# MATERIAL
 		self.material           = material
 		# PSEUDO CHILDREN
@@ -158,6 +157,28 @@ class BaseGeom(blue.GeomType, blue.thing.NodeThing, blue.thing.MoveableThing, bl
 			self.material._build(parent, world, indicies, **kwargs)
 			kwargs['material'] = self.material.asset.name
 		return super()._build(parent, world, indicies, **kwargs)
+
+
+	@blue.restrict
+	@classmethod
+	def _from_xml_element(cls,
+			      xml_element: xml.Element,
+			      material:    blue.MaterialType|None = None,
+			      **kwargs) -> blue.ThingType:
+		# Strip material name from XML before parsing — we inject the object directly
+		mat_attr = xml_element.get('material')
+		if mat_attr is not None:
+			xml_element = xml.Element(xml_element.tag, {k: v for k, v in xml_element.items() if k != 'material'})
+		init_args, post_args, rest_args = cls._xml_element_args(xml_element)
+		init_args['copy'] = False
+		if material is not None:
+			init_args['material'] = material
+		init_args.update(kwargs)
+		obj = object.__new__(cls)
+		obj.__init__(**init_args)
+		for key, val in post_args.items():
+			setattr(obj, key, val)
+		return obj
 
 
 	@property
@@ -1531,28 +1552,36 @@ class Mesh(blue.MeshGeomType, BaseGeom):
 
 	@blue.restrict
 	@classmethod
-	def _from_xml_element(cls, 
-			      xml_element: xml.Element, 
-			      asset:       blue.AssetType) -> blue.ThingType:
+	def _from_xml_element(cls,
+			      xml_element: xml.Element,
+			      asset:       blue.AssetType,
+			      material:    blue.MaterialType|None = None) -> blue.ThingType:
 		"""
 		This method reconstructs a Mesh from an xml element.
-		
+
 		Parameters
 		----------
 		xml_element : xml.Element
 			The xml element from which a Mesh is reconstructed.
 		asset : blue.AssetType
 			The asset from which the Mesh takes its data.
-		
+		material : blue.MaterialType | None, optional
+			The Material assigned to the Mesh.
+
 		Returns
 		-------
 		blue.ThingType
 			The reconstructed Mesh.
 		"""
+		# Strip material name from XML before parsing
+		if xml_element.get('material') is not None:
+			xml_element = xml.Element(xml_element.tag, {k: v for k, v in xml_element.items() if k != 'material'})
 		init_args, post_args, rest_args = cls._xml_element_args(xml_element)
 		geom_type = rest_args['type']
 		geom = object.__new__(blue.REGISTER.GEOM_THINGS[geom_type])
 		init_args['asset'] = asset
+		if material is not None:
+			init_args['material'] = material
 		geom.__init__(**init_args)
 		for key, val in post_args.items():
 			setattr(geom, key, val)

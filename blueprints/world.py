@@ -352,6 +352,19 @@ class World(blue.WorldType, blue.thing.NodeThing):
 			self._built = False
 			for tendon in self.descendants['tendons']['descendants']:
 				tendon._built = False
+			# Reset _built on material/texture assets so they
+			# re-emit their XML elements on the next build.
+			for thing in self.all:
+				asset = getattr(thing, 'asset', None)
+				if asset is not None and hasattr(asset, '_built'):
+					asset._built = False
+					tex = getattr(asset, 'texture', None)
+					if tex is not None:
+						tex_asset = getattr(tex, 'asset', None)
+						if tex_asset is not None and hasattr(tex_asset, '_built'):
+							tex_asset._built = False
+			if self.texture is not None:
+				self.texture.asset._built = False
 			self._name_manager.unregister()
 			self._gl_context.free()
 			del self._mj_model, self._mj_data, self._gl_context
@@ -686,7 +699,6 @@ class World(blue.WorldType, blue.thing.NodeThing):
 
 	@blue.restrict
 	@classmethod
-	@blue._experimental
 	def from_xml_string(cls, string: str) -> blue.WorldType:
 		"""
 		This method reconstructs a World from a Mujoco xml string. It currently only supports reading 
@@ -706,9 +718,13 @@ class World(blue.WorldType, blue.thing.NodeThing):
 		init_args     = dict()
 		caches        = defaultdict(dict)
 		assets        = defaultdict(dict)
+		materials     = dict()
 		sensors       = defaultdict(lambda: defaultdict(list))
 		actuators     = defaultdict(lambda: defaultdict(list))
 		ref_actuators = defaultdict(lambda: defaultdict(list))
+		TEXTURE_CLASSES = {'2d':     blue.texture.Plane,
+				   'cube':   blue.texture.Box,
+				   'skybox': blue.texture.Skybox}
 		xml_tree      = xml.fromstring(string)
 		xml_compiler  = xml_tree.find('compiler')
 		xml_assets    = xml_tree.find('asset')
@@ -724,70 +740,159 @@ class World(blue.WorldType, blue.thing.NodeThing):
 			angle = xml_compiler.get('angle')
 			if angle is not None:
 				init_args['angle'] = angle
+			autolimits = xml_compiler.get('autolimits')
+			if autolimits is not None:
+				init_args['autolimits'] = autolimits == 'true'
 		if xml_option is not None:
 			init_args['viscosity']  = float(xml_option.get('viscosity')) if xml_option.get('viscosity') is not None else 0.
 			init_args['integrator'] = xml_option.get('integrator')
+			timestep = xml_option.get('timestep')
+			if timestep is not None:
+				init_args['timestep'] = float(timestep)
+			cone = xml_option.get('cone')
+			if cone is not None:
+				init_args['cone'] = cone
 			xml_flag = xml_option.find('flag')
 			if xml_flag is not None:
 				init_args['gravity'] = xml_flag.get('gravity') == 'enable'
 				init_args['contact'] = xml_flag.get('contact') == 'enable'
 		if xml_sensors is not None:
 			for sensor in xml_sensors:
-				sensor_type   = sensor.tag
 				sensor_obj    = blue.REGISTER._get_thing(sensor)
 				sensor_parent = sensor_obj._PARENT_TYPE
 				sensors[sensor_parent][sensor.get(sensor_parent)].append(sensor_obj)
 		if xml_assets is not None:
+			# XML attr name → Texture constructor param name
+			TEX_ATTR_MAP = {'file':      'filename',     'rgb1':       'color_1',
+					'rgb2':      'color_2',      'markrgb':    'color_mark',
+					'gridsize':  'grid_size',    'gridlayout': 'grid_layout',
+					'hflip':     'h_flip',       'vflip':      'v_flip',
+					'nchannel':  'n_channel',    'content_type': 'content',
+					'fileright': 'filename_right',  'fileleft':  'filename_left',
+					'fileup':    'filename_up',     'filedown':  'filename_down',
+					'filefront': 'filename_front',  'fileback':  'filename_back'}
+			TEX_FLOAT  = {'random'}
+			TEX_INT    = {'width', 'height', 'n_channel', 'nchannel'}
+			TEX_BOOL   = {'hflip', 'vflip', 'h_flip', 'v_flip'}
+			TEX_ARRAY  = {'rgb1', 'rgb2', 'markrgb', 'gridsize'}
+			TEX_SKIP   = {'type', 'name'}
+			# First pass: textures and cache-based assets (mesh, hfield)
 			for asset in xml_assets:
 				asset_type = asset.tag
-				if asset_type in blue.REGISTER.CACHE_THINGS:
+				if asset_type == 'texture':
+					tex_type   = asset.get('type', '2d')
+					tex_class  = TEXTURE_CLASSES[tex_type]
+					tex_kwargs = {}
+					for k, v in asset.items():
+						if k in TEX_SKIP:
+							continue
+						param = TEX_ATTR_MAP.get(k, k)
+						if k in TEX_FLOAT:
+							v = float(v)
+						elif k in TEX_INT:
+							v = int(v)
+						elif k in TEX_BOOL:
+							v = v == 'true'
+						elif k in TEX_ARRAY:
+							v = [float(x) for x in v.split()]
+						tex_kwargs[param] = v
+					tex_name = asset.get('name')
+					tex_obj = tex_class(name=tex_name, **tex_kwargs)
+					tex_obj.asset._name = tex_name
+					assets['texture'][tex_name] = tex_obj
+				elif asset_type in blue.REGISTER.CACHE_THINGS:
 					asset_name = asset.get('name')
 					if asset_name in caches[asset_type]:
 						cache = caches[asset_type][asset_name]
 					else:
 						cache_class = blue.REGISTER.CACHE_THINGS[asset_type]
 						cache = cache_class._from_xml_element(asset)
-					# BUILD ASSET
 					asset_class = blue.REGISTER._get_thing_class(asset)
-					asset_obj   = asset_class._from_xml_element(xml_element=asset, 
+					asset_obj   = asset_class._from_xml_element(xml_element=asset,
 											cache=cache)
-				else:
-					asset_obj = blue.REGISTER._get_thing(asset)
-				assets[asset_type][asset.get('name')] = asset_obj
+					assets[asset_type][asset.get('name')] = asset_obj
+			# Second pass: materials (reference textures by name)
+			MAT_FLOAT = {'emission', 'specular', 'shininess', 'reflectance',
+				      'metallic', 'roughness'}
+			MAT_BOOL  = {'texuniform'}
+			MAT_ARRAY = {'texrepeat', 'rgba'}
+			MAT_SKIP  = {'name', 'texture'}
+			for asset in xml_assets:
+				if asset.tag == 'material':
+					tex_name   = asset.get('texture')
+					texture    = assets['texture'].get(tex_name) if tex_name else None
+					mat_kwargs = {}
+					for k, v in asset.items():
+						if k in MAT_SKIP:
+							continue
+						if k == 'rgba':
+							mat_kwargs['color'] = [float(x) for x in v.split()]
+						elif k in MAT_FLOAT:
+							mat_kwargs[k] = float(v)
+						elif k in MAT_BOOL:
+							mat_kwargs[k] = v == 'true'
+						elif k in MAT_ARRAY:
+							mat_kwargs[k] = [float(x) for x in v.split()]
+						else:
+							mat_kwargs[k] = v
+					mat_name = asset.get('name')
+					mat_obj = blue.Material(texture=texture,
+								name=mat_name,
+								**mat_kwargs)
+					# Preserve the original asset name so the
+					# round-tripped XML uses the same identifier.
+					mat_obj.asset._name = mat_name
+					materials[mat_name] = mat_obj
 		if xml_actuators is not None:
 			for actuator in xml_actuators:
-				actuator_type = actuator.tag
-				actuator_name = actuator.get('name') 
 				actuator_obj  = blue.REGISTER._get_thing(actuator)
 				actuator_obj._IGNORE_CHECKS = True
+				actuator_name = actuator.get('name')
+				# Attach sensors that reference this actuator
 				if actuator_name in sensors['actuator']:
 					actuator_obj.attach(*sensors['actuator'][actuator_name], copy=False)
-				parent_name = actuator.get(actuator_obj._PARENT_REFERENCE)
-				actuators[actuator_parent][parent_name].append(actuator_obj)
-				if parent_name is not None:
+				# Find the parent reference attribute (joint, site, body, or jointinparent)
+				parent_name = None
+				parent_key  = None
+				for attr in ('joint', 'jointinparent', 'site', 'body'):
+					parent_name = actuator.get(attr)
+					if parent_name is not None:
+						parent_key = 'joint' if attr == 'jointinparent' else attr
 						break
-				#for actuator_parent in actuator_obj._PARENT_REFERENCE:
-				#	parent_name = actuator.get(actuator_parent)
-				#	if parent_name is not None:
-				#		break
-				for actuator_reference, reference_type in actuator_obj._OTHER_REFERENCES.items():
-					reference_name = actuator.get(actuator_reference)
-					if reference_name is not None:
-						ref_actuators[reference_type][reference_name].append(actuator_obj)
+				if parent_key is not None:
+					actuators[parent_key][parent_name].append(actuator_obj)
+				# Handle secondary references (refsite)
+				for ref_attr, ref_type in actuator_obj._OTHER_REFERENCES.items():
+					ref_name = actuator.get(ref_attr)
+					if ref_name is not None:
+						ref_actuators[ref_type][ref_name].append(actuator_obj)
+		# Assign skybox texture to init_args if present
+		for tex_obj in assets.get('texture', {}).values():
+			if isinstance(tex_obj, blue.texture.Skybox):
+				init_args['texture'] = tex_obj
+				break
 		# INIT WORLD
 		world = object.__new__(cls)
 		world.__init__(**init_args)
 		for xml_element in xml_worldbody:
-			cls._build_from_xml(parent=world, 
-						xml_element=xml_element, 
-						assets=assets, 
-						sensors=sensors, 
-						actuators=actuators, 
+			cls._build_from_xml(parent=world,
+						xml_element=xml_element,
+						assets=assets,
+						materials=materials,
+						sensors=sensors,
+						actuators=actuators,
 						ref_actuators=ref_actuators)
 		for tag_actuators in actuators.values():
 			for name_parent in tag_actuators.values():
 				for actuator in name_parent:
 					actuator._IGNORE_CHECKS = False
+		# Resolve camera/light target references by name
+		all_things = {t.name: t for t in world.all}
+		for thing in world.all:
+			if isinstance(thing, (blue.Camera, blue.Light)):
+				target_name = getattr(thing, '_target_name', None)
+				if target_name is not None and target_name in all_things:
+					thing.target = all_things[target_name]
 		return world
 
 
@@ -826,15 +931,16 @@ class World(blue.WorldType, blue.thing.NodeThing):
 	@blue.restrict
 	@classmethod
 	def _build_from_xml(cls,
-			    parent, 
-			    xml_element, 
-			    assets:        dict, 
-			    sensors:       dict, 
-			    actuators:     dict, 
+			    parent,
+			    xml_element,
+			    assets:        dict,
+			    materials:     dict,
+			    sensors:       dict,
+			    actuators:     dict,
 			    ref_actuators: dict) -> blue.ThingType:
 		"""
 		This method builds the world from the xml Element.
-		
+
 		Parameters
 		----------
 		parent : WorldType
@@ -843,6 +949,8 @@ class World(blue.WorldType, blue.thing.NodeThing):
 			The xml element from which the Things used for reconstruction are taken.
 		assets : dict
 			A dictionary of assets.
+		materials : dict
+			A dictionary of materials.
 		sensors : dict
 			A dictionary of sensors.
 		actuators : dict
@@ -853,11 +961,19 @@ class World(blue.WorldType, blue.thing.NodeThing):
 		# CONSTRUCT ELEMENT
 		xml_type  = xml_element.get('type')
 		xml_tag   = xml_element.tag
-		obj_class = blue.REGISTER._get_thing_class(xml_element)
+		xml_name  = xml_element.get('name', '')
+		# Detect Agent bodies by AGENT: prefix
+		if xml_tag == 'body' and xml_name.startswith('AGENT:'):
+			obj_class = blue.Agent
+		else:
+			obj_class = blue.REGISTER._get_thing_class(xml_element)
 		xml_args  = dict()
 		if xml_type in assets:
 			xml_name = xml_element.get(xml_type)
 			xml_args['asset'] = assets[xml_type][xml_name]
+		mat_name = xml_element.get('material')
+		if mat_name is not None and mat_name in materials:
+			xml_args['material'] = materials[mat_name]
 		if xml_tag in sensors:
 			xml_name = xml_element.get('name')
 			xml_args['sensors'] = sensors[xml_tag][xml_name]
@@ -870,11 +986,12 @@ class World(blue.WorldType, blue.thing.NodeThing):
 		obj = obj_class._from_xml_element(xml_element=xml_element, **xml_args)
 		# CONSTRUCT CHILDREN
 		for xml_child in xml_element:
-			cls._build_from_xml(parent=obj, 
-						xml_element=xml_child, 
-						assets=assets, 
-						sensors=sensors, 
-						actuators=actuators, 
+			cls._build_from_xml(parent=obj,
+						xml_element=xml_child,
+						assets=assets,
+						materials=materials,
+						sensors=sensors,
+						actuators=actuators,
 						ref_actuators=ref_actuators)
 		parent.attach(obj, copy=False)
 
