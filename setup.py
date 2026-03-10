@@ -4,9 +4,9 @@ with open('README.md', 'r') as file:
 	long_description = file.read()
 
 setup(name='mujoco-blueprints', 
-      version='0.0.5', 
+      version='0.1.1', 
       packages=find_packages(), 
-      author='Mortimer von Chappuis', 
+      author='Mortimer von Chappuis, Yash Saraswat', 
       install_requires=['numpy>=2.0.0', 
       			'imageio>=2.0.0', 
       			'mujoco>=3.3.2', 
