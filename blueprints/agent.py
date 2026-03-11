@@ -3,7 +3,7 @@ To make blueprints amneable for multi agent settings the :class:`Agent` class pr
 access to the relevant Things for observation (:class:`Sensors <blueprints.sensors.BaseSensor>` and :class:`Cameras <blueprints.Camera>`) 
 and action (:class:`Actuators <blueprints.actuators.General>`).
 
-Agents are used similar to :class:`Bodies <blueprints.bodies.Body>` with some minor differences.
+Agents are used similar to :class:`Bodies <blueprints.body.Body>` with some minor differences.
 The child attributes for normal Things map only to direct children, but for an :class:`Agent` instance 
 the attributes :attr:`actuators <Agent.actuators>`, :attr:`sensors <Agent.sensors>` and :attr:`cameras <Agent.cameras>` 
 map to all descendants as a more intuitive shortcut.
@@ -40,8 +40,8 @@ all actions can be applied through the :attr:`force <Agent.force>` and :attr:`ac
 	>>> agent.action_shape
 	{'force': 1, 
 	 'activation': 1}
-	>>> agent.force = np.darray([...])
-	>>> agent.activation = = np.darray([...])
+	>>> agent.force = np.ndarray([...])
+	>>> agent.activation = np.ndarray([...])
 
 
 
@@ -64,7 +64,7 @@ class Agent(blue.AgentType, blue.Body):
 		Returns
 		-------
 		str
-			A representation of the Agent. The xml will be parsed as :class:`Body <blue.bodies.Body>`.
+			A representation of the Agent. The xml will be parsed as :class:`Body <blueprints.body.Body>`.
 		"""
 		return f'<agent/body name="{self.name}">'
 
@@ -91,7 +91,7 @@ class Agent(blue.AgentType, blue.Body):
 	@classmethod
 	def _from_xml_element(cls,
 			      xml_element,
-			      actuators: list = []) -> blue.ThingType:
+			      actuators: list = None) -> blue.ThingType:
 		init_args, post_args, rest_args = cls._xml_element_args(xml_element)
 		init_args['copy'] = False
 		# Strip AGENT: prefix — the name property re-adds it
@@ -103,7 +103,7 @@ class Agent(blue.AgentType, blue.Body):
 		agent.__init__(**init_args)
 		for key, val in post_args.items():
 			setattr(agent, key, val)
-		for actuator in actuators:
+		for actuator in (actuators or []):
 			agent.attach(actuator, copy=False)
 			actuator.body = agent
 		return agent
@@ -260,20 +260,22 @@ class Agent(blue.AgentType, blue.Body):
 
 	@activation.setter
 	@blue.restrict
-	def activation(self, 
+	def activation(self,
 		       activation: list[int|float]|np.ndarray) -> None:
 		"""
 		A 1-D vector of activations for the actuators activation states.
-		
+		Only actuators with an activation state (``dyntype != 'none'``) are set.
+		The length of the input must match the number of activatable actuators.
+
 		Parameters
 		----------
 		activation : list[int | float] | np.ndarray
 		"""
-		actuators = self.actuators
-		mask = [x is not None for x in activation]
-		for i, (x, m) in enumerate(zip(activation, mask)):
-			if m:
-				actuators[i] = x
+		j = 0
+		for actuator in self.actuators:
+			if actuator.activation is not None:
+				actuator.activation = float(activation[j])
+				j += 1
 
 
 	@property
@@ -307,13 +309,14 @@ class Agent(blue.AgentType, blue.Body):
 	def action_shape(self) -> dict:
 		"""
 		The shapes of both action types (activations and forces)
-		
+
 		Returns
 		-------
 		dict
 		"""
 		if not self.root._built:
 			raise Exception('Agent.action_shape is only accessable after the World has been built.')
-		activation = self.activation
-		force      = self.force
-		return {'activation': len(activation), 'force': len(force)}
+		actuators = list(self.actuators)
+		n_force = len(actuators)
+		n_activation = sum(1 for a in actuators if a.activation is not None)
+		return {'activation': n_activation, 'force': n_force}
